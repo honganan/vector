@@ -32,6 +32,7 @@ impl Encoder<Vec<LokiRecord>> for LokiBatchEncoder {
 pub struct LokiBatch {
     stream: HashMap<String, String>,
     values: Vec<LokiEvent>,
+    tags: Vec<String>,
     #[serde(skip)]
     finalizers: EventFinalizers,
 }
@@ -44,9 +45,11 @@ impl From<Vec<LokiRecord>> for LokiBatch {
                 res.finalizers.merge(item.take_finalizers());
                 res.stream.extend(item.labels.into_iter());
                 res.values.push(item.event);
+                res.tags.extend(item.tags);
                 res
             });
         result.values.sort_by_key(|e| e.timestamp);
+        result.tags.dedup();
         result
     }
 }
@@ -81,6 +84,7 @@ pub struct LokiRecord {
     pub partition: PartitionKey,
     pub labels: Labels,
     pub event: LokiEvent,
+    pub tags: Vec<String>,
     pub finalizers: EventFinalizers,
 }
 
