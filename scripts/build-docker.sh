@@ -10,12 +10,12 @@ set -euo pipefail
 
 set -x
 
-CHANNEL="${CHANNEL:-"$(scripts/release-channel.sh)"}"
+CHANNEL="${CHANNEL:-"nightly"}"
 VERSION="${VECTOR_VERSION:-"$(scripts/version.sh)"}"
-DATE="${DATE:-"$(date -u +%Y-%m-%d)"}"
+DATE="${DATE:-"$(date -u +%Y-%m-%d%H%M%S)"}"
 PLATFORM="${PLATFORM:-}"
 PUSH="${PUSH:-"true"}"
-REPO="${REPO:-"timberio/vector"}"
+REPO="${REPO:-"registry.shdocker.tuya-inc.top/middleware/log-vector/vector"}"
 
 #
 # Functions
@@ -67,16 +67,16 @@ if [[ "$CHANNEL" == "latest" ]]; then
 
   for VERSION_TAG in "$VERSION_EXACT" "$VERSION_MINOR_X" "$VERSION_MAJOR_X" latest; do
     build alpine "$VERSION_TAG"
-    build debian "$VERSION_TAG"
-    build distroless-static "$VERSION_TAG"
-    build distroless-libc "$VERSION_TAG"
+ #   build debian "$VERSION_TAG"
+ #   build distroless-static "$VERSION_TAG"
+ #   build distroless-libc "$VERSION_TAG"
   done
 elif [[ "$CHANNEL" == "nightly" ]]; then
   for VERSION_TAG in "nightly-$DATE" nightly; do
     build alpine "$VERSION_TAG"
-    build debian "$VERSION_TAG"
-    build distroless-static "$VERSION_TAG"
-    build distroless-libc "$VERSION_TAG"
+ #   build debian "$VERSION_TAG"
+ #   build distroless-static "$VERSION_TAG"
+ #   build distroless-libc "$VERSION_TAG"
   done
 elif [[ "$CHANNEL" == "test" ]]; then
   build "${BASE:-"alpine"}" "${TAG:-"test"}"
