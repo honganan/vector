@@ -247,8 +247,8 @@ impl EventEncoder {
             event: LokiEvent {
                 timestamp,
                 event: bytes.freeze(),
+                tags,
             },
-            tags,
             partition,
             finalizers,
         })
@@ -601,7 +601,7 @@ mod tests {
         let record = encoder.encode_event(event);
         assert!(record.event.event.contains(log_schema().timestamp_key()));
         assert_eq!(record.labels.len(), 3);
-        assert_eq!(record.tags.len(), 3);
+        assert_eq!(record.event.tags.len(), 3);
 
         println!("record： {:?}", record);
         let labels: HashMap<String, String> = record.labels.into_iter().collect();
@@ -611,7 +611,7 @@ mod tests {
         let uid = String::from("ay1659490487087eyY6O");
         let devid = String::from("f6fa61fbf6ebb3dad650ef540f9c841eba5e2d017bc6");
         let tid = String::from("042bcbd6f1d94fb08fafe3f3d7c2a33c.258.16595275465203029");
-        let tags: Vec<String> = record.tags.into_iter().collect();
+        let tags: Vec<String> = record.event.tags.into_iter().collect();
         assert!(tags.contains(&devid));
         assert!(tags.contains(&tid));
         assert!(tags.contains(&uid));
@@ -670,7 +670,7 @@ mod tests {
         let record = encoder.encode_event(event);
         assert!(record.event.event.contains(log_schema().timestamp_key()));
         assert_eq!(record.labels.len(), 3);
-        assert_eq!(record.tags.len(), 3);
+        assert_eq!(record.event.tags.len(), 3);
 
         println!("record： {:?}", record);
         let batch = LokiBatch::from(vec![record]);

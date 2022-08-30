@@ -32,7 +32,7 @@ impl Encoder<Vec<LokiRecord>> for LokiBatchEncoder {
 pub struct LokiBatch {
     stream: HashMap<String, String>,
     values: Vec<LokiEvent>,
-    tags: Vec<String>,
+    // tags: Vec<String>,
     #[serde(skip)]
     finalizers: EventFinalizers,
 }
@@ -45,11 +45,9 @@ impl From<Vec<LokiRecord>> for LokiBatch {
                 res.finalizers.merge(item.take_finalizers());
                 res.stream.extend(item.labels.into_iter());
                 res.values.push(item.event);
-                res.tags.extend(item.tags);
                 res
             });
         result.values.sort_by_key(|e| e.timestamp);
-        result.tags.dedup();
         result
     }
 }
@@ -58,6 +56,7 @@ impl From<Vec<LokiRecord>> for LokiBatch {
 pub struct LokiEvent {
     pub timestamp: i64,
     pub event: Bytes,
+    pub tags: Vec<String>,
 }
 
 impl ByteSizeOf for LokiEvent {
@@ -71,10 +70,11 @@ impl Serialize for LokiEvent {
     where
         S: serde::Serializer,
     {
-        let mut seq = serializer.serialize_seq(Some(2))?;
+        let mut seq = serializer.serialize_seq(Some(3))?;
         seq.serialize_element(&self.timestamp.to_string())?;
         let event = String::from_utf8_lossy(&self.event);
         seq.serialize_element(&event)?;
+        seq.serialize_element(&self.tags)?;
         seq.end()
     }
 }
@@ -84,7 +84,7 @@ pub struct LokiRecord {
     pub partition: PartitionKey,
     pub labels: Labels,
     pub event: LokiEvent,
-    pub tags: Vec<String>,
+    // pub tags: Vec<String>,
     pub finalizers: EventFinalizers,
 }
 
