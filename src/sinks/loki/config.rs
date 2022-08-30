@@ -105,9 +105,16 @@ pub struct LokiConfig {
     #[configurable(metadata(docs::additional_props_description = "A Loki label."))]
     pub labels: HashMap<Template, Template>,
 
+    /// Another kind of fields thats would use Bloom-filter
+    pub tags: HashMap<Template, Template>,
+
     /// Whether or not to delete fields from the event when they are used as labels.
     #[serde(default = "crate::serde::default_false")]
     pub remove_label_fields: bool,
+
+    /// Whether or not to delete fields from the event when they are used as tags.
+    #[serde(default = "crate::serde::default_false")]
+    pub remove_tag_fields: bool,
 
     /// Whether or not to remove the timestamp from the event payload.
     ///
