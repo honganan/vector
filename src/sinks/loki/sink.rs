@@ -473,7 +473,7 @@ mod tests {
         template::Template, test_util::random_lines,
     };
     // use crate::sinks::loki::event::LokiRecord;
-    use crate::sinks::loki::event::LokiBatch;
+    use crate::sinks::loki::event::{LokiBatch};
 
     #[test]
     fn encoder_no_labels() {
@@ -569,6 +569,10 @@ mod tests {
             Template::try_from("going_to_fail_*").unwrap(),
             Template::try_from("{{ value }}").unwrap(),
         );
+        labels.insert(
+            Template::try_from("will_not_exists").unwrap(),
+            Template::try_from("{{ value_not_exists }}").unwrap(),
+        );
         tags.insert(
             Template::try_from("uid").unwrap(),
             Template::try_from("{{ uid }}").unwrap(),
@@ -581,26 +585,31 @@ mod tests {
             Template::try_from("devid").unwrap(),
             Template::try_from("{{ devid }}").unwrap(),
         );
-        let encoder = EventEncoder {
+        let mut encoder = EventEncoder {
             key_partitioner: KeyPartitioner::new(None),
-            encoding: EncodingConfig::from(Encoding::Json),
+            transformer: Default::default(),
+            encoder: Encoder::<()>::new(JsonSerializer::new().into()),
             labels,
             tags,
             remove_label_fields: false,
             remove_timestamp: false,
         };
-        let mut event = Event::from("hello world");
+        let mut event = Event::Log(LogEvent::from("hello world"));
         let log = event.as_mut_log();
         log.insert(log_schema().timestamp_key(), chrono::Utc::now());
         log.insert("name", "foo");
         log.insert("value", "bar");
+        let mut test_dict = BTreeMap::default();
+        test_dict.insert("one".to_string(), Value::from("foo"));
+        test_dict.insert("two".to_string(), Value::from("baz"));
+        log.insert("dict", Value::from(test_dict));
         log.insert("uid", "ay1659490487087eyY6O");
         log.insert("tid", "042bcbd6f1d94fb08fafe3f3d7c2a33c.258.16595275465203029");
         log.insert("devid", "f6fa61fbf6ebb3dad650ef540f9c841eba5e2d017bc6");
 
-        let record = encoder.encode_event(event);
-        assert!(record.event.event.contains(log_schema().timestamp_key()));
-        assert_eq!(record.labels.len(), 3);
+        let record = encoder.encode_event(event).unwrap();
+        assert!(String::from_utf8_lossy(&record.event.event).contains(log_schema().timestamp_key()));
+        assert_eq!(record.labels.len(), 4);
         assert_eq!(record.event.tags.len(), 3);
 
         println!("record： {:?}", record);
@@ -649,9 +658,10 @@ mod tests {
             Template::try_from("devid").unwrap(),
             Template::try_from("{{ devid }}").unwrap(),
         );
-        let encoder = EventEncoder {
+        let mut encoder = EventEncoder {
             key_partitioner: KeyPartitioner::new(None),
-            encoding: EncodingConfig::from(Encoding::Json),
+            transformer: Default::default(),
+            encoder: Encoder::<()>::new(JsonSerializer::new().into()),
             labels,
             tags,
             remove_label_fields: false,
@@ -662,14 +672,18 @@ mod tests {
         log.insert(log_schema().timestamp_key(), chrono::Utc::now());
         log.insert("name", "foo");
         log.insert("value", "bar");
+        let mut test_dict = BTreeMap::default();
+        test_dict.insert("one".to_string(), Value::from("foo"));
+        test_dict.insert("two".to_string(), Value::from("baz"));
+        log.insert("dict", Value::from(test_dict));
         log.insert("uid", "ay1659490487087eyY6O");
         log.insert("tid", "042bcbd6f1d94fb08fafe3f3d7c2a33c.258.16595275465203029");
         log.insert("devid", "f6fa61fbf6ebb3dad650ef540f9c841eba5e2d017bc6");
 
 
-        let record = encoder.encode_event(event);
-        assert!(record.event.event.contains(log_schema().timestamp_key()));
-        assert_eq!(record.labels.len(), 3);
+        let record = encoder.encode_event(event).unwrap();
+        assert!(String::from_utf8_lossy(&record.event.event).contains(log_schema().timestamp_key()));
+        assert_eq!(record.labels.len(), 4);
         assert_eq!(record.event.tags.len(), 3);
 
         println!("record： {:?}", record);
