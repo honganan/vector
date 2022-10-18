@@ -152,6 +152,7 @@ pub(super) struct EventEncoder {
     labels: HashMap<Template, Template>,
     tags: HashMap<Template, Template>,
     remove_label_fields: bool,
+    remove_tag_fields: bool,
     remove_timestamp: bool,
 }
 
@@ -209,6 +210,17 @@ impl EventEncoder {
             }
         }
     }
+    fn remove_tag_fields(&self, event: &mut Event) {
+        if self.remove_tag_fields {
+            for template in self.tags.values() {
+                if let Some(fields) = template.get_fields() {
+                    for field in fields {
+                        event.as_mut_log().remove(field.as_str());
+                    }
+                }
+            }
+        }
+    }
 
     pub(super) fn encode_event(&mut self, mut event: Event) -> Option<LokiRecord> {
         let tenant_id = self.key_partitioner.partition(&event);
@@ -216,6 +228,7 @@ impl EventEncoder {
         let mut labels = self.build_labels(&event);
         let tags = self.build_tags(&event);
         self.remove_label_fields(&mut event);
+        self.remove_tag_fields(&mut event);
 
         let schema = log_schema();
         let timestamp_key = schema.timestamp_key();
@@ -378,6 +391,7 @@ impl LokiSink {
                 labels: config.labels,
                 tags: config.tags,
                 remove_label_fields: config.remove_label_fields,
+                remove_tag_fields: config.remove_tag_fields,
                 remove_timestamp: config.remove_timestamp,
             },
             batch_settings: config.batch.into_batcher_settings()?,
@@ -484,6 +498,7 @@ mod tests {
             labels: HashMap::default(),
             tags: HashMap::default(),
             remove_label_fields: false,
+            remove_tag_fields: false,
             remove_timestamp: false,
         };
         let mut event = Event::Log(LogEvent::from("hello world"));
@@ -525,6 +540,7 @@ mod tests {
             labels,
             tags,
             remove_label_fields: false,
+            remove_tag_fields: false,
             remove_timestamp: false,
         };
         let mut event = Event::Log(LogEvent::from("hello world"));
@@ -592,6 +608,7 @@ mod tests {
             labels,
             tags,
             remove_label_fields: false,
+            remove_tag_fields: false,
             remove_timestamp: false,
         };
         let mut event = Event::Log(LogEvent::from("hello world"));
@@ -665,6 +682,7 @@ mod tests {
             labels,
             tags,
             remove_label_fields: false,
+            remove_tag_fields: true,
             remove_timestamp: false,
         };
         let mut event = Event::Log(LogEvent::from("hello world"));
@@ -685,6 +703,7 @@ mod tests {
         assert!(String::from_utf8_lossy(&record.event.event).contains(log_schema().timestamp_key()));
         assert_eq!(record.labels.len(), 4);
         assert_eq!(record.event.tags.len(), 3);
+        // assert!(!log.contains(".uid"));
 
         println!("record： {:?}", record);
         let batch = LokiBatch::from(vec![record]);
@@ -700,6 +719,7 @@ mod tests {
             labels: HashMap::default(),
             tags: HashMap::default(),
             remove_label_fields: false,
+            remove_tag_fields: false,
             remove_timestamp: true,
         };
         let mut event = Event::Log(LogEvent::from("hello world"));
@@ -730,6 +750,7 @@ mod tests {
             labels,
             tags,
             remove_label_fields: true,
+            remove_tag_fields: false,
             remove_timestamp: false,
         };
         let mut event = Event::Log(LogEvent::from("hello world"));
@@ -750,6 +771,7 @@ mod tests {
             labels: HashMap::default(),
             tags: HashMap::default(),
             remove_label_fields: false,
+            remove_tag_fields: false,
             remove_timestamp: false,
         };
         let base = chrono::Utc::now();
