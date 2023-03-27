@@ -131,6 +131,7 @@ pub struct LokiEvent {
     pub timestamp: i64,
     pub event: Bytes,
     pub tags: Vec<String>,
+    pub attachment: Vec<(String, String)>,
 }
 
 impl ByteSizeOf for LokiEvent {
@@ -159,11 +160,12 @@ impl Serialize for LokiEvent {
     where
         S: serde::Serializer,
     {
-        let mut seq = serializer.serialize_seq(Some(3))?;
+        let mut seq = serializer.serialize_seq(Some(4))?;
         seq.serialize_element(&self.timestamp.to_string())?;
         let event = String::from_utf8_lossy(&self.event);
         seq.serialize_element(&event)?;
         seq.serialize_element(&self.tags)?;
+        seq.serialize_element(&self.attachment)?;
         seq.end()
     }
 }
