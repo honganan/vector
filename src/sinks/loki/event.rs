@@ -131,7 +131,7 @@ pub struct LokiEvent {
     pub timestamp: i64,
     pub event: Bytes,
     pub tags: Vec<String>,
-    pub attachment: Vec<(String, String)>,
+    pub attachment: HashMap<String, String>,
 }
 
 impl ByteSizeOf for LokiEvent {

@@ -208,7 +208,7 @@ impl EventEncoder {
         vec
     }
 
-    fn build_attachment(&self, event: &Event) -> Vec<(String, String)> {
+    fn build_attachment(&self, event: &Event) -> HashMap<String, String> {
         let mut vec: Vec<(String, String)> = Vec::new();
 
         for (key, value_template) in self.attachment.iter() {
@@ -218,7 +218,7 @@ impl EventEncoder {
                 vec.push((key.to_string(), value));
             }
         }
-        vec
+        vec.into_iter().collect()
     }
 
     fn remove_label_fields(&self, event: &mut Event) {
