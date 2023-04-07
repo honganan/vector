@@ -48,6 +48,8 @@ impl Encoder<Vec<LokiRecord>> for LokiBatchEncoder {
                                     loki_logproto::util::Entry(
                                         event.timestamp,
                                         String::from_utf8_lossy(&event.event).into_owned(),
+                                        event.tags.to_vec(),
+                                        event.attachment.to_owned(),
                                     )
                                 })
                                 .collect();
