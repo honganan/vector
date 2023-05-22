@@ -10,7 +10,7 @@ set -euo pipefail
 
 set -x
 
-CHANNEL="${CHANNEL:-"$(cargo vdev release channel)"}"
+CHANNEL="${CHANNEL:-"nightly"}"
 VERSION="${VECTOR_VERSION:-"$(cargo vdev version)"}"
 DATE="${DATE:-"$(date -u +%Y-%m-%d%H%M%S)"}"
 PLATFORM="${PLATFORM:-}"
