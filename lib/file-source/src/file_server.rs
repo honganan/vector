@@ -431,8 +431,6 @@ async fn checkpoint_writer(
             _ = sleep => {},
         }
 
-        info!(message = "I am running!");
-
         let emitter = emitter.clone();
         let checkpointer = Arc::clone(&checkpointer);
         tokio::task::spawn_blocking(move || {
