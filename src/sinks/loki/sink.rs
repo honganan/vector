@@ -253,6 +253,17 @@ impl EventEncoder {
                     }
                 }
             }
+        } else {
+            // 删除以 __temp_ 开头的字段
+            for (name,template) in &self.attachment {
+                if name.starts_with("__temp_") {
+                    if let Some(fields) = template.get_fields() {
+                        for field in fields {
+                            event.as_mut_log().remove(field.as_str());
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -750,6 +761,10 @@ mod tests {
             "field_value".to_string(),
             Template::try_from("{{ devid }}").unwrap(),
         );
+        attachment.insert(
+            "__temp_reqB".to_string(),
+            Template::try_from("{{ __temp_reqB }}").unwrap(),
+        );
         let mut encoder = EventEncoder {
             key_partitioner: KeyPartitioner::new(None),
             transformer: Default::default(),
@@ -774,13 +789,13 @@ mod tests {
         log.insert("uid", "ay1659490487087eyY6O");
         log.insert("tid", "042bcbd6f1d94fb08fafe3f3d7c2a33c.258.16595275465203029");
         log.insert("devid", "f6fa61fbf6ebb3dad650ef540f9c841eba5e2d017bc6");
-
+        log.insert("__temp_reqB", "reqB");
 
         let record = encoder.encode_event(event).unwrap();
         assert!(String::from_utf8_lossy(&record.event.event).contains(log_schema().timestamp_key()));
         assert_eq!(record.labels.len(), 4);
         assert_eq!(record.event.tags.len(), 3);
-        assert_eq!(record.event.attachment.len(), 2);
+        assert_eq!(record.event.attachment.len(), 3);
         // assert!(!log.contains(".uid"));
 
         println!("record： {:?}", record);
