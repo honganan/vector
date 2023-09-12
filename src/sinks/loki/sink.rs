@@ -162,7 +162,6 @@ pub(super) struct EventEncoder {
     attachment: HashMap<String, Template>,
     remove_label_fields: bool,
     remove_tag_fields: bool,
-    #[derivative(Default(value = false))]
     remove_attachment_fields: bool,
     remove_timestamp: bool,
 }
@@ -261,8 +260,8 @@ impl EventEncoder {
         let tenant_id = self.key_partitioner.partition(&event);
         let finalizers = event.take_finalizers();
         let mut labels = self.build_labels(&event);
-        let tags = self.build_tags(&event);
-        let attachment = self.build_attachment(&event);
+        let mut tags = self.build_tags(&event);
+        let mut attachment = self.build_attachment(&event);
         self.remove_label_fields(&mut event);
         self.remove_tag_fields(&mut event);
         self.remove_attachment_fields(&mut event);
@@ -290,10 +289,10 @@ impl EventEncoder {
 
         // If no tags and attachment are provided we set a default one
         if tags.is_empty() {
-            tags = vec![("NOTEXISTID".to_string(), "NOTEXISTID".to_string())]
+            tags = vec![("NOTEXISTID".to_string())]
         }
         if attachment.is_empty() {
-            attachment = vec![("NOTEXISTID".to_string(), "NOTEXISTID".to_string())]
+            attachment.insert("NOTEXISTID".to_string(), "NOTEXISTID".to_string());
         }
 
         let partition = PartitionKey { tenant_id };
