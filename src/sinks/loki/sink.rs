@@ -162,6 +162,8 @@ pub(super) struct EventEncoder {
     attachment: HashMap<String, Template>,
     remove_label_fields: bool,
     remove_tag_fields: bool,
+    #[derivative(Default(value = false))]
+    remove_attachment_fields: bool,
     remove_timestamp: bool,
 }
 
@@ -243,6 +245,17 @@ impl EventEncoder {
             }
         }
     }
+    fn remove_attachment_fields(&self, event: &mut Event) {
+        if self.remove_attachment_fields {
+            for template in self.attachment.values() {
+                if let Some(fields) = template.get_fields() {
+                    for field in fields {
+                        event.as_mut_log().remove(field.as_str());
+                    }
+                }
+            }
+        }
+    }
 
     pub(super) fn encode_event(&mut self, mut event: Event) -> Option<LokiRecord> {
         let tenant_id = self.key_partitioner.partition(&event);
@@ -252,6 +265,7 @@ impl EventEncoder {
         let attachment = self.build_attachment(&event);
         self.remove_label_fields(&mut event);
         self.remove_tag_fields(&mut event);
+        self.remove_attachment_fields(&mut event);
 
         let timestamp = match event.as_log().get_timestamp() {
             Some(Value::Timestamp(ts)) => ts.timestamp_nanos(),
@@ -272,6 +286,14 @@ impl EventEncoder {
         if labels.is_empty() {
             emit!(LokiEventUnlabeled);
             labels = vec![("agent".to_string(), "vector".to_string())]
+        }
+
+        // If no tags and attachment are provided we set a default one
+        if tags.is_empty() {
+            tags = vec![("NOTEXISTID".to_string(), "NOTEXISTID".to_string())]
+        }
+        if attachment.is_empty() {
+            attachment = vec![("NOTEXISTID".to_string(), "NOTEXISTID".to_string())]
         }
 
         let partition = PartitionKey { tenant_id };
@@ -428,6 +450,7 @@ impl LokiSink {
                 attachment: config.attachment,
                 remove_label_fields: config.remove_label_fields,
                 remove_tag_fields: config.remove_tag_fields,
+                remove_attachment_fields: config.remove_attachment_fields,
                 remove_timestamp: config.remove_timestamp,
             },
             batch_settings: config.batch.into_batcher_settings()?,
@@ -538,6 +561,7 @@ mod tests {
             attachment: HashMap::default(),
             remove_label_fields: false,
             remove_tag_fields: false,
+            remove_attachment_fields: false,
             remove_timestamp: false,
         };
         let mut event = Event::Log(LogEvent::from("hello world"));
@@ -581,6 +605,7 @@ mod tests {
             attachment: HashMap::default(),
             remove_label_fields: false,
             remove_tag_fields: false,
+            remove_attachment_fields: false,
             remove_timestamp: false,
         };
         let mut event = Event::Log(LogEvent::from("hello world"));
@@ -650,6 +675,7 @@ mod tests {
             attachment: HashMap::default(),
             remove_label_fields: false,
             remove_tag_fields: false,
+            remove_attachment_fields: false,
             remove_timestamp: false,
         };
         let mut event = Event::Log(LogEvent::from("hello world"));
@@ -734,6 +760,7 @@ mod tests {
             attachment,
             remove_label_fields: false,
             remove_tag_fields: true,
+            remove_attachment_fields: false,
             remove_timestamp: false,
         };
         let mut event = Event::Log(LogEvent::from("hello world"));
@@ -792,6 +819,7 @@ mod tests {
             attachment,
             remove_label_fields: false,
             remove_tag_fields: true,
+            remove_attachment_fields: false,
             remove_timestamp: false,
         };
         let mut event = Event::Log(LogEvent::from("hello world"));
@@ -831,6 +859,7 @@ mod tests {
             attachment: HashMap::default(),
             remove_label_fields: false,
             remove_tag_fields: false,
+            remove_attachment_fields: false,
             remove_timestamp: true,
         };
         let mut event = Event::Log(LogEvent::from("hello world"));
@@ -863,6 +892,7 @@ mod tests {
             attachment: HashMap::default(),
             remove_label_fields: true,
             remove_tag_fields: false,
+            remove_attachment_fields: false,
             remove_timestamp: false,
         };
         let mut event = Event::Log(LogEvent::from("hello world"));
@@ -885,6 +915,7 @@ mod tests {
             attachment: HashMap::default(),
             remove_label_fields: false,
             remove_tag_fields: false,
+            remove_attachment_fields: false,
             remove_timestamp: false,
         };
         let base = chrono::Utc::now();

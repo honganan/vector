@@ -121,6 +121,10 @@ pub struct LokiConfig {
     #[serde(default = "crate::serde::default_false")]
     pub remove_tag_fields: bool,
 
+    /// Whether or not to delete fields from the event when they are used as attachments.
+    #[serde(default = "crate::serde::default_false")]
+    pub remove_attachment_fields: bool,
+
     /// Whether or not to remove the timestamp from the event payload.
     ///
     /// The timestamp will still be sent as event metadata for Loki to use for indexing.
