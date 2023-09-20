@@ -111,7 +111,7 @@ pub struct LokiConfig {
 
     /// Extended attachment fields send to Loki
     #[configurable(derived)]
-    pub attachment: HashMap<String, Template>,
+    pub attachment: HashMap<Template, Template>,
 
     /// Whether or not to delete fields from the event when they are used as labels.
     #[serde(default = "crate::serde::default_false")]

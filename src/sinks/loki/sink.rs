@@ -159,7 +159,7 @@ pub(super) struct EventEncoder {
     encoder: Encoder<()>,
     labels: HashMap<Template, Template>,
     tags: HashMap<Template, Template>,
-    attachment: HashMap<String, Template>,
+    attachment: HashMap<Template, Template>,
     remove_label_fields: bool,
     remove_tag_fields: bool,
     remove_attachment_fields: bool,
@@ -212,11 +212,27 @@ impl EventEncoder {
     fn build_attachment(&self, event: &Event) -> HashMap<String, String> {
         let mut vec: Vec<(String, String)> = Vec::new();
 
-        for (key, value_template) in self.attachment.iter() {
-            if let (Ok(value),) = (
+        for (key_template, value_template) in self.attachment.iter() {
+            if let (Ok(key), Ok(value),) = (
+                key_template.render_string(event),
                 value_template.render_string(event),
             ) {
-                vec.push((key.to_string(), value));
+                if let Some(opening_prefix) = key.strip_suffix('*') {
+                    let output: Result<serde_json::map::Map<String, serde_json::Value>, _> =
+                        serde_json::from_str(value.as_str());
+
+                    if let Ok(output) = output {
+                        // key_* -> key_one, key_two, key_three
+                        for (k, v) in output {
+                            vec.push((
+                                slugify_text(format!("{}{}", opening_prefix, k)),
+                                Value::from(v).to_string_lossy().into_owned(),
+                            ))
+                        }
+                    }
+                } else {
+                    vec.push((key, value));
+                }
             }
         }
         vec.into_iter().collect()
@@ -256,7 +272,7 @@ impl EventEncoder {
         } else {
             // 删除以 __temp_ 开头的字段
             for (name,template) in &self.attachment {
-                if name.starts_with("__temp_") {
+                if name.to_string().starts_with("__temp_") {
                     if let Some(fields) = template.get_fields() {
                         for field in fields {
                             event.as_mut_log().remove(field.as_str());
@@ -754,15 +770,15 @@ mod tests {
             Template::try_from("{{ devid }}").unwrap(),
         );
         attachment.insert(
-            "prefix".to_string(),
+            Template::try_from("prefix").unwrap(),
             Template::try_from("dev").unwrap(),
         );
         attachment.insert(
-            "field_value".to_string(),
+            Template::try_from("field_value").unwrap(),
             Template::try_from("{{ devid }}").unwrap(),
         );
         attachment.insert(
-            "__temp_reqB".to_string(),
+            Template::try_from("__temp_reqB_*").unwrap(),
             Template::try_from("{{ __temp_reqB }}").unwrap(),
         );
         let mut encoder = EventEncoder {
@@ -789,13 +805,13 @@ mod tests {
         log.insert("uid", "ay1659490487087eyY6O");
         log.insert("tid", "042bcbd6f1d94fb08fafe3f3d7c2a33c.258.16595275465203029");
         log.insert("devid", "f6fa61fbf6ebb3dad650ef540f9c841eba5e2d017bc6");
-        log.insert("__temp_reqB", "reqB");
+        log.insert("__temp_reqB", "{\"a\":\"b\",\"c\":\"d\"}");
 
         let record = encoder.encode_event(event).unwrap();
         assert!(String::from_utf8_lossy(&record.event.event).contains(log_schema().timestamp_key()));
         assert_eq!(record.labels.len(), 4);
         assert_eq!(record.event.tags.len(), 3);
-        assert_eq!(record.event.attachment.len(), 3);
+        assert_eq!(record.event.attachment.len(), 4);
         // assert!(!log.contains(".uid"));
 
         println!("record： {:?}", record);
