@@ -805,7 +805,7 @@ mod tests {
         log.insert("uid", "ay1659490487087eyY6O");
         log.insert("tid", "042bcbd6f1d94fb08fafe3f3d7c2a33c.258.16595275465203029");
         log.insert("devid", "f6fa61fbf6ebb3dad650ef540f9c841eba5e2d017bc6");
-        log.insert("__temp_reqB", "{\"a\":\"b\",\"c\":\"d\"}");
+        log.insert("__temp_reqB", "{\"input_bizCode\":\"tuya-support\",\"input_type\":\"all\"}");
 
         let record = encoder.encode_event(event).unwrap();
         assert!(String::from_utf8_lossy(&record.event.event).contains(log_schema().timestamp_key()));
