@@ -213,7 +213,7 @@ impl EventEncoder {
         let mut vec: Vec<(String, String)> = Vec::new();
 
         for (key_template, value_template) in self.attachment.iter() {
-            if let (Ok(key), Ok(value),) = (
+            if let (Ok(key), Ok(value)) = (
                 key_template.render_string(event),
                 value_template.render_string(event),
             ) {
