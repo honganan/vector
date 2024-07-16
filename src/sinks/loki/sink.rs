@@ -158,10 +158,8 @@ pub(super) struct EventEncoder {
     transformer: Transformer,
     encoder: Encoder<()>,
     labels: HashMap<Template, Template>,
-    tags: HashMap<Template, Template>,
     attachment: HashMap<Template, Template>,
     remove_label_fields: bool,
-    remove_tag_fields: bool,
     remove_attachment_fields: bool,
     remove_timestamp: bool,
 }
@@ -191,19 +189,6 @@ impl EventEncoder {
                 } else {
                     vec.push((key, value));
                 }
-            }
-        }
-        vec
-    }
-
-    fn build_tags(&self, event: &Event) -> Vec<String> {
-        let mut vec: Vec<String> = Vec::new();
-
-        for value_template in self.tags.values() {
-            if let (Ok(value),) = (
-                value_template.render_string(event),
-            ) {
-                vec.push(value);
             }
         }
         vec
@@ -249,17 +234,7 @@ impl EventEncoder {
             }
         }
     }
-    fn remove_tag_fields(&self, event: &mut Event) {
-        if self.remove_tag_fields {
-            for template in self.tags.values() {
-                if let Some(fields) = template.get_fields() {
-                    for field in fields {
-                        event.as_mut_log().remove(field.as_str());
-                    }
-                }
-            }
-        }
-    }
+
     fn remove_attachment_fields(&self, event: &mut Event) {
         if self.remove_attachment_fields {
             for template in self.attachment.values() {
@@ -287,10 +262,8 @@ impl EventEncoder {
         let tenant_id = self.key_partitioner.partition(&event);
         let finalizers = event.take_finalizers();
         let mut labels = self.build_labels(&event);
-        let mut tags = self.build_tags(&event);
         let mut attachment = self.build_attachment(&event);
         self.remove_label_fields(&mut event);
-        self.remove_tag_fields(&mut event);
         self.remove_attachment_fields(&mut event);
 
         let timestamp = match event.as_log().get_timestamp() {
@@ -314,10 +287,7 @@ impl EventEncoder {
             labels = vec![("agent".to_string(), "vector".to_string())]
         }
 
-        // If no tags and attachment are provided we set a default one
-        if tags.is_empty() {
-            tags = vec![("NOTEXISTID".to_string())]
-        }
+        // If no attachment provided we set a default one
         if attachment.is_empty() {
             attachment.insert("NOTEXISTID".to_string(), "NOTEXISTID".to_string());
         }
@@ -329,7 +299,6 @@ impl EventEncoder {
             event: LokiEvent {
                 timestamp,
                 event: bytes.freeze(),
-                tags,
                 attachment,
             },
             partition,
@@ -472,10 +441,8 @@ impl LokiSink {
                 transformer,
                 encoder,
                 labels: config.labels,
-                tags: config.tags,
                 attachment: config.attachment,
                 remove_label_fields: config.remove_label_fields,
-                remove_tag_fields: config.remove_tag_fields,
                 remove_attachment_fields: config.remove_attachment_fields,
                 remove_timestamp: config.remove_timestamp,
             },
@@ -583,10 +550,8 @@ mod tests {
             transformer: Default::default(),
             encoder: Encoder::<()>::new(JsonSerializerConfig::default().build().into()),
             labels: HashMap::default(),
-            tags: HashMap::default(),
             attachment: HashMap::default(),
             remove_label_fields: false,
-            remove_tag_fields: false,
             remove_attachment_fields: false,
             remove_timestamp: false,
         };
@@ -604,7 +569,6 @@ mod tests {
 
     #[test]
     fn encoder_with_labels() {
-        let tags = HashMap::default();
         let mut labels = HashMap::default();
         labels.insert(
             Template::try_from("static").unwrap(),
@@ -627,10 +591,8 @@ mod tests {
             transformer: Default::default(),
             encoder: Encoder::<()>::new(JsonSerializerConfig::default().build().into()),
             labels,
-            tags,
             attachment: HashMap::default(),
             remove_label_fields: false,
-            remove_tag_fields: false,
             remove_attachment_fields: false,
             remove_timestamp: false,
         };
@@ -657,88 +619,7 @@ mod tests {
     }
 
     #[test]
-    fn encoder_with_labels_tags() {
-        let mut tags = HashMap::default();
-        let mut labels = HashMap::default();
-        labels.insert(
-            Template::try_from("static").unwrap(),
-            Template::try_from("value").unwrap(),
-        );
-        labels.insert(
-            Template::try_from("{{ name }}").unwrap(),
-            Template::try_from("{{ value }}").unwrap(),
-        );
-        labels.insert(
-            Template::try_from("test_key_*").unwrap(),
-            Template::try_from("{{ dict }}").unwrap(),
-        );
-        labels.insert(
-            Template::try_from("going_to_fail_*").unwrap(),
-            Template::try_from("{{ value }}").unwrap(),
-        );
-        labels.insert(
-            Template::try_from("will_not_exists").unwrap(),
-            Template::try_from("{{ value_not_exists }}").unwrap(),
-        );
-        tags.insert(
-            Template::try_from("uid").unwrap(),
-            Template::try_from("{{ uid }}").unwrap(),
-        );
-        tags.insert(
-            Template::try_from("tid").unwrap(),
-            Template::try_from("{{ tid }}").unwrap(),
-        );
-        tags.insert(
-            Template::try_from("devid").unwrap(),
-            Template::try_from("{{ devid }}").unwrap(),
-        );
-        let mut encoder = EventEncoder {
-            key_partitioner: KeyPartitioner::new(None),
-            transformer: Default::default(),
-            encoder: Encoder::<()>::new(JsonSerializerConfig::default().build().into()),
-            labels,
-            tags,
-            attachment: HashMap::default(),
-            remove_label_fields: false,
-            remove_tag_fields: false,
-            remove_attachment_fields: false,
-            remove_timestamp: false,
-        };
-        let mut event = Event::Log(LogEvent::from("hello world"));
-        let log = event.as_mut_log();
-        log.insert(log_schema().timestamp_key(), chrono::Utc::now());
-        log.insert("name", "foo");
-        log.insert("value", "bar");
-        let mut test_dict = BTreeMap::default();
-        test_dict.insert("one".to_string(), Value::from("foo"));
-        test_dict.insert("two".to_string(), Value::from("baz"));
-        log.insert("dict", Value::from(test_dict));
-        log.insert("uid", "ay1659490487087eyY6O");
-        log.insert("tid", "042bcbd6f1d94fb08fafe3f3d7c2a33c.258.16595275465203029");
-        log.insert("devid", "f6fa61fbf6ebb3dad650ef540f9c841eba5e2d017bc6");
-
-        let record = encoder.encode_event(event).unwrap();
-        assert!(String::from_utf8_lossy(&record.event.event).contains(log_schema().timestamp_key()));
-        assert_eq!(record.labels.len(), 4);
-        assert_eq!(record.event.tags.len(), 3);
-
-        println!("record： {:?}", record);
-        let labels: HashMap<String, String> = record.labels.into_iter().collect();
-        assert_eq!(labels["static"], "value".to_string());
-        assert_eq!(labels["foo"], "bar".to_string());
-
-        let uid = String::from("ay1659490487087eyY6O");
-        let devid = String::from("f6fa61fbf6ebb3dad650ef540f9c841eba5e2d017bc6");
-        let tid = String::from("042bcbd6f1d94fb08fafe3f3d7c2a33c.258.16595275465203029");
-        let tags: Vec<String> = record.event.tags.into_iter().collect();
-        assert!(tags.contains(&devid));
-        assert!(tags.contains(&tid));
-        assert!(tags.contains(&uid));
-    }
-
-    #[test]
-    fn encoder_lokibatch_with_labels_tags() {
-        let mut tags = HashMap::default();
+    fn encoder_lokibatch_with_labels_attachment() {
         let mut labels = HashMap::default();
         let mut attachment = HashMap::default();
         labels.insert(
@@ -757,18 +638,7 @@ mod tests {
             Template::try_from("going_to_fail_*").unwrap(),
             Template::try_from("{{ value }}").unwrap(),
         );
-        tags.insert(
-            Template::try_from("uid").unwrap(),
-            Template::try_from("{{ uid }}").unwrap(),
-        );
-        tags.insert(
-            Template::try_from("tid").unwrap(),
-            Template::try_from("{{ tid }}").unwrap(),
-        );
-        tags.insert(
-            Template::try_from("devid").unwrap(),
-            Template::try_from("{{ devid }}").unwrap(),
-        );
+
         attachment.insert(
             Template::try_from("prefix").unwrap(),
             Template::try_from("dev").unwrap(),
@@ -786,10 +656,8 @@ mod tests {
             transformer: Default::default(),
             encoder: Encoder::<()>::new(JsonSerializerConfig::default().build().into()),
             labels,
-            tags,
             attachment,
             remove_label_fields: false,
-            remove_tag_fields: true,
             remove_attachment_fields: false,
             remove_timestamp: false,
         };
@@ -802,15 +670,12 @@ mod tests {
         test_dict.insert("one".to_string(), Value::from("foo"));
         test_dict.insert("two".to_string(), Value::from("baz"));
         log.insert("dict", Value::from(test_dict));
-        log.insert("uid", "ay1659490487087eyY6O");
-        log.insert("tid", "042bcbd6f1d94fb08fafe3f3d7c2a33c.258.16595275465203029");
         log.insert("devid", "f6fa61fbf6ebb3dad650ef540f9c841eba5e2d017bc6");
         log.insert("__temp_reqB", "{\"input_bizCode\":\"tuya-support\",\"input_type\":\"all\"}");
 
         let record = encoder.encode_event(event).unwrap();
         assert!(String::from_utf8_lossy(&record.event.event).contains(log_schema().timestamp_key()));
         assert_eq!(record.labels.len(), 4);
-        assert_eq!(record.event.tags.len(), 3);
         assert_eq!(record.event.attachment.len(), 4);
         // assert!(!log.contains(".uid"));
 
@@ -820,8 +685,7 @@ mod tests {
     }
 
     #[test]
-    fn encoder_lokibatch_with_no_tags_attachment() {
-        let tags = HashMap::default();
+    fn encoder_lokibatch_with_no_attachment() {
         let mut labels = HashMap::default();
         let attachment = HashMap::default();
         labels.insert(
@@ -845,10 +709,8 @@ mod tests {
             transformer: Default::default(),
             encoder: Encoder::<()>::new(JsonSerializerConfig::default().build().into()),
             labels,
-            tags,
             attachment,
             remove_label_fields: false,
-            remove_tag_fields: true,
             remove_attachment_fields: false,
             remove_timestamp: false,
         };
@@ -869,9 +731,6 @@ mod tests {
         let record = encoder.encode_event(event).unwrap();
         assert!(String::from_utf8_lossy(&record.event.event).contains(log_schema().timestamp_key()));
         assert_eq!(record.labels.len(), 4);
-        // assert_eq!(record.event.tags.len(), 3);
-        // assert_eq!(record.event.attachment.len(), 2);
-        // assert!(!log.contains(".uid"));
 
         println!("record： {:?}", record);
         let batch = LokiBatch::from(vec![record]);
@@ -885,10 +744,8 @@ mod tests {
             transformer: Default::default(),
             encoder: Encoder::<()>::new(JsonSerializerConfig::default().build().into()),
             labels: HashMap::default(),
-            tags: HashMap::default(),
             attachment: HashMap::default(),
             remove_label_fields: false,
-            remove_tag_fields: false,
             remove_attachment_fields: false,
             remove_timestamp: true,
         };
@@ -903,7 +760,6 @@ mod tests {
 
     #[test]
     fn encoder_no_record_labels() {
-        let tags = HashMap::default();
         let mut labels = HashMap::default();
         labels.insert(
             Template::try_from("static").unwrap(),
@@ -918,10 +774,8 @@ mod tests {
             transformer: Default::default(),
             encoder: Encoder::<()>::new(JsonSerializerConfig::default().build().into()),
             labels,
-            tags,
             attachment: HashMap::default(),
             remove_label_fields: true,
-            remove_tag_fields: false,
             remove_attachment_fields: false,
             remove_timestamp: false,
         };
@@ -941,10 +795,8 @@ mod tests {
             transformer: Default::default(),
             encoder: Encoder::<()>::new(JsonSerializerConfig::default().build().into()),
             labels: HashMap::default(),
-            tags: HashMap::default(),
             attachment: HashMap::default(),
             remove_label_fields: false,
-            remove_tag_fields: false,
             remove_attachment_fields: false,
             remove_timestamp: false,
         };

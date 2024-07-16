@@ -16,7 +16,7 @@ pub mod util {
     const NANOS_RANGE: i64 = 1_000_000_000;
 
     // (<Timestamp in nanos>, <Line>)
-    pub struct Entry(pub i64, pub String, pub Vec<String>, pub HashMap<String,String>);
+    pub struct Entry(pub i64, pub String, pub HashMap<String,String>);
 
     impl From<Entry> for logproto::EntryAdapter {
         fn from(entry: Entry) -> Self {
@@ -26,8 +26,7 @@ pub mod util {
                     nanos: (entry.0 % NANOS_RANGE) as i32,
                 }),
                 line: entry.1,
-                tags: entry.2,
-                attachment: entry.3,
+                attachment: entry.2,
             }
         }
     }
@@ -105,12 +104,12 @@ mod tests {
             .timestamp_opt(1640244790, 0)
             .single()
             .expect("invalid timestamp");
-        let entry1 = Entry(ts1.timestamp_nanos(), "hello".into(),Vec::new(), HashMap::default());
+        let entry1 = Entry(ts1.timestamp_nanos(), "hello".into(), HashMap::default());
         let ts2 = Utc
             .timestamp_opt(1640244791, 0)
             .single()
             .expect("invalid timestamp");
-        let entry2 = Entry(ts2.timestamp_nanos(), "world".into(),Vec::new(), HashMap::default());
+        let entry2 = Entry(ts2.timestamp_nanos(), "world".into(), HashMap::default());
         let labels = vec![("source".into(), "protobuf-test".into())]
             .into_iter()
             .collect();

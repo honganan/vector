@@ -133,8 +133,7 @@ message EntryAdapter {
     (gogoproto.jsontag) = "ts"
   ];
   string line = 2 [(gogoproto.jsontag) = "line"];
-  repeated string tags = 3 [(gogoproto.nullable) = true, (gogoproto.jsontag) = "tags"];
-  map<string,string> attachment = 4 [(gogoproto.nullable) = true, (gogoproto.jsontag) = "attachment"];
+  map<string,string> attachment = 3 [(gogoproto.nullable) = true, (gogoproto.jsontag) = "attachment"];
 }
 
 message Sample {

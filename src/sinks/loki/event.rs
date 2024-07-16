@@ -48,7 +48,6 @@ impl Encoder<Vec<LokiRecord>> for LokiBatchEncoder {
                                     loki_logproto::util::Entry(
                                         event.timestamp,
                                         String::from_utf8_lossy(&event.event).into_owned(),
-                                        event.tags.to_vec(),
                                         event.attachment.to_owned(),
                                     )
                                 })
@@ -132,7 +131,6 @@ impl From<Vec<LokiRecord>> for LokiBatch {
 pub struct LokiEvent {
     pub timestamp: i64,
     pub event: Bytes,
-    pub tags: Vec<String>,
     pub attachment: HashMap<String, String>,
 }
 
@@ -162,11 +160,10 @@ impl Serialize for LokiEvent {
     where
         S: serde::Serializer,
     {
-        let mut seq = serializer.serialize_seq(Some(4))?;
+        let mut seq = serializer.serialize_seq(Some(3))?;
         seq.serialize_element(&self.timestamp.to_string())?;
         let event = String::from_utf8_lossy(&self.event);
         seq.serialize_element(&event)?;
-        seq.serialize_element(&self.tags)?;
         seq.serialize_element(&self.attachment)?;
         seq.end()
     }

@@ -105,10 +105,6 @@ pub struct LokiConfig {
     #[configurable(metadata(docs::additional_props_description = "A Loki label."))]
     pub labels: HashMap<Template, Template>,
 
-    /// Another kind of fields that would use Bloom-filter
-    #[configurable(derived)]
-    pub tags: HashMap<Template, Template>,
-
     /// Extended attachment fields send to Loki
     #[configurable(derived)]
     pub attachment: HashMap<Template, Template>,
@@ -116,10 +112,6 @@ pub struct LokiConfig {
     /// Whether or not to delete fields from the event when they are used as labels.
     #[serde(default = "crate::serde::default_false")]
     pub remove_label_fields: bool,
-
-    /// Whether or not to delete fields from the event when they are used as tags.
-    #[serde(default = "crate::serde::default_false")]
-    pub remove_tag_fields: bool,
 
     /// Whether or not to delete fields from the event when they are used as attachments.
     #[serde(default = "crate::serde::default_false")]
